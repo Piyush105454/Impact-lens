@@ -142,11 +142,15 @@ export function UploadMediaDialog({ open, onOpenChange, projectId, projectName, 
               <CldUploadWidget
                 uploadPreset={publicConfig.cloudinaryUploadPreset}
                 config={{ cloud: { cloudName: publicConfig.cloudinaryCloudName } }}
+                signatureEndpoint="/api/media/sign"
                 options={{ multiple: true, maxFiles: 20, resourceType: "auto", folder: `impactlens/${projectId}/${phase}`, sources: ["local", "camera", "url"], tags: ["impactlens", projectId, phase] }}
                 onSuccess={(res: CloudinaryUploadWidgetResults) => {
                   if (res.info && typeof res.info !== "string") void register(res.info);
                 }}
-                onError={() => toast.error("Upload failed", { description: "Cloudinary rejected the upload. Check the upload preset allows unsigned uploads." })}
+                onError={(err) => {
+                    const detail = typeof err === "object" && err !== null && "statusText" in err ? String((err as {statusText:string}).statusText) : "Check your upload preset is set to Unsigned in the Cloudinary console.";
+                    toast.error("Upload failed", { description: detail });
+                  }}
               >
                 {({ open: openWidget }) => (
                   <button type="button" onClick={() => openWidget()} className="flex w-full flex-col items-center gap-3 rounded-2xl border border-dashed bg-surface/60 px-6 py-10 text-center transition-colors hover:border-primary/50">

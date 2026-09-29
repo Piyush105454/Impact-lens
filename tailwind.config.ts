@@ -24,8 +24,8 @@ const config: Config = {
         phase: { before: "#D9A441", during: "#5DB7DE", after: "#22C55E" },
       },
       fontFamily: {
-        sans: ['"Public Sans Variable"', "ui-sans-serif", "system-ui", "sans-serif"],
-        display: ['"Fraunces Variable"', "ui-serif", "Georgia", "serif"],
+        sans: ['"DM Sans Variable"', "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ['"DM Serif Display"', "ui-serif", "Georgia", "serif"],
       },
       borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 4px)", sm: "calc(var(--radius) - 6px)" },
       keyframes: {

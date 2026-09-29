@@ -27,8 +27,8 @@ export default async function DashboardPage() {
     <div className="space-y-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold sm:text-[2.4rem]">{greeting()}, {DEMO_USER.firstName}</h1>
-          <p className="mt-2 text-muted-foreground">Monitor your projects, evidence and impact insights.</p>
+          <h1 className="font-display text-3xl font-semibold sm:text-[2.4rem]">{greeting()}, {DEMO_USER.firstName}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Monitor your projects, evidence and impact insights.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" asChild><Link href="/search"><Sparkles /> AI Search</Link></Button>

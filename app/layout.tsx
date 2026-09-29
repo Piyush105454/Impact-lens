@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/public-sans";
-import "@fontsource-variable/fraunces/full.css";
+import "@fontsource/dm-serif-display";
+import "@fontsource-variable/dm-sans";
 import "./globals.css";
 import { Toaster } from "sonner";
 

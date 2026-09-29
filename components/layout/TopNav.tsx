@@ -39,10 +39,16 @@ export function TopNav({ activity, user }: { activity: AIActivityItem[]; user: {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur-md">
-      <div className="container flex h-16 items-center gap-6">
-        <Logo href="/dashboard" />
-        <nav aria-label="Main" className="hidden flex-1 items-center gap-1 lg:flex">
+    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md">
+      <div className="container flex h-16 items-center">
+
+        {/* Logo — fixed left column */}
+        <div className="flex w-44 shrink-0 items-center">
+          <Logo href="/dashboard" />
+        </div>
+
+        {/* Nav links — centred */}
+        <nav aria-label="Main" className="hidden flex-1 items-center justify-center gap-1 lg:flex">
           {NAV.map((n) => {
             const active = isActive(pathname, n.href);
             return (
@@ -51,7 +57,7 @@ export function TopNav({ activity, user }: { activity: AIActivityItem[]; user: {
                 href={n.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "rounded-full px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                  "rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
                   active && "bg-surface-raised text-foreground",
                 )}
               >
@@ -60,7 +66,9 @@ export function TopNav({ activity, user }: { activity: AIActivityItem[]; user: {
             );
           })}
         </nav>
-        <div className="ml-auto flex items-center gap-2">
+
+        {/* Right actions — fixed right column */}
+        <div className="flex w-44 shrink-0 items-center justify-end gap-1">
           <DropdownMenu>
             <DropdownMenuTrigger className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Notifications">
               <Bell className="h-[18px] w-[18px]" />

@@ -89,8 +89,8 @@ export function NewProjectForm() {
     setSaving(true);
     try {
       const p = await api<Project>("/api/projects", { json: values });
-      toast.success("Project created", { description: p.name });
-      router.push(`/projects/${p.id}`);
+      toast.success("Project created", { description: `"${p.name}" is ready. Redirecting to dashboard…` });
+      router.push("/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create project");
