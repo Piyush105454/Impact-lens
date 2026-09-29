@@ -116,6 +116,7 @@ export function TopNav({ activity, user }: { activity: AIActivityItem[]; user: {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {/* hello world */}
           <button type="button" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-accent lg:hidden" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
