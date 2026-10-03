@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Sparkles } from "lucide-react";
+import { KeyRound, Loader2, Sparkles, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +14,8 @@ export function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next");
   const dest = next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState<string>(DEMO_USER.email);
+  const [password, setPassword] = useState<string>(DEMO_USER.password);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"signin" | "demo" | null>(null);
 
@@ -56,11 +56,37 @@ export function LoginForm() {
     }
   }
 
+  function fillDemo() {
+    setEmail(DEMO_USER.email);
+    setPassword(DEMO_USER.password);
+  }
+
   return (
     <div className="w-full max-w-sm">
       <h1 className="text-3xl font-semibold">Sign in</h1>
       <p className="mt-2 text-sm text-muted-foreground">Access your organization&apos;s projects, evidence and reports.</p>
-      <form onSubmit={signIn} className="mt-8 space-y-4">
+
+      {/* Prominent Demo Credentials Helper */}
+      <div className="mt-6 rounded-2xl border border-primary/30 bg-primary/5 p-4 transition-all">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-primary uppercase tracking-wider">
+            <KeyRound className="h-3.5 w-3.5" /> Demo Access Enabled
+          </span>
+          <button
+            type="button"
+            onClick={fillDemo}
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            <UserCheck className="h-3.5 w-3.5" /> Auto-fill
+          </button>
+        </div>
+        <div className="mt-2.5 space-y-1 text-xs text-muted-foreground font-mono">
+          <p>Email: <span className="text-foreground font-semibold">{DEMO_USER.email}</span></p>
+          <p>Password: <span className="text-foreground font-semibold">{DEMO_USER.password}</span></p>
+        </div>
+      </div>
+
+      <form onSubmit={signIn} className="mt-6 space-y-4">
         <div>
           <Label htmlFor="email" className="mb-1.5 block text-sm">Email</Label>
           <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@organization.org" />
@@ -76,16 +102,10 @@ export function LoginForm() {
       </form>
       {publicConfig.demoMode && (
         <>
-          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" /></div>
+          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" /></div>
           <Button variant="secondary" size="lg" className="w-full" onClick={tryDemo} disabled={pending !== null}>
-            {pending === "demo" ? <Loader2 className="animate-spin" /> : <Sparkles />} Try Demo
+            {pending === "demo" ? <Loader2 className="animate-spin" /> : <Sparkles />} Instant One-Click Demo Login
           </Button>
-          <div className="mt-6 rounded-xl border bg-surface p-4 text-sm">
-            <p className="font-medium">Demo credentials</p>
-            <p className="mt-1 text-muted-foreground">Email: <code className="text-foreground">{DEMO_USER.email}</code></p>
-            <p className="text-muted-foreground">Password: <code className="text-foreground">{DEMO_USER.password}</code></p>
-            <button type="button" onClick={() => { setEmail(DEMO_USER.email); setPassword(DEMO_USER.password); }} className="mt-2 text-sm font-medium text-primary hover:underline">Use demo credentials</button>
-          </div>
         </>
       )}
     </div>
