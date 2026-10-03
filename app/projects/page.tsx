@@ -2,16 +2,27 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { FolderPlus, Plus } from "lucide-react";
 import { listProjects } from "@/services/projects";
+import { getRepository } from "@/services/repository";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { EmptyState, PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DEMO_ORG_NAME } from "@/lib/demo/demoProjects";
+import type { MediaAsset } from "@/types";
 
 export const metadata: Metadata = { title: "Projects" };
 
 export default async function ProjectsPage() {
-  const projects = await listProjects();
+  const repo = getRepository();
+  const [projects, media] = await Promise.all([listProjects(), repo.listMedia()]);
   const active = projects.filter((p) => p.status !== "completed").length;
+
+  const mediaByProject = new Map<string, MediaAsset[]>();
+  for (const m of media) {
+    const list = mediaByProject.get(m.projectId) ?? [];
+    list.push(m);
+    mediaByProject.set(m.projectId, list);
+  }
+
   return (
     <>
       <PageHeader
@@ -21,7 +32,9 @@ export default async function ProjectsPage() {
       />
       {projects.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {projects.map((p) => <ProjectCard key={p.id} project={p} />)}
+          {projects.map((p) => (
+            <ProjectCard key={p.id} project={p} mediaAssets={mediaByProject.get(p.id)} />
+          ))}
         </div>
       ) : (
         <EmptyState icon={<FolderPlus className="h-5 w-5" />} title="No projects yet" description="Create a project to start organizing field media and AI insights." action={<Button asChild><Link href="/projects/new">Create project</Link></Button>} />

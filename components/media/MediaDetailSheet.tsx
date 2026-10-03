@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { MediaAnalysis, MediaAsset } from "@/types";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
@@ -18,15 +18,18 @@ interface Props {
   asset: MediaAsset | null;
   onOpenChange: (open: boolean) => void;
   onUpdated?: (asset: MediaAsset) => void;
+  onDeleted?: (id: string) => void;
 }
 
-export function MediaDetailSheet({ asset, onOpenChange, onUpdated }: Props) {
+export function MediaDetailSheet({ asset, onOpenChange, onUpdated, onDeleted }: Props) {
   const [current, setCurrent] = useState<MediaAsset | null>(asset);
+  const [deleting, setDeleting] = useState(false);
   const steps = useStepSequence(ANALYSIS_STEPS.length);
   const { reset } = steps;
 
   useEffect(() => {
     setCurrent(asset);
+    setDeleting(false);
     reset();
   }, [asset, reset]);
 
@@ -39,6 +42,22 @@ export function MediaDetailSheet({ asset, onOpenChange, onUpdated }: Props) {
       toast.success("AI analysis complete", { description: `${r.asset.filename}, ${r.analysis.confidence}% confidence` });
     } catch (e) {
       toast.error("AI analysis failed", { description: e instanceof Error ? e.message : "Try again in a moment." });
+    }
+  }
+
+  async function handleDelete() {
+    if (!current) return;
+    if (!confirm(`Are you sure you want to delete ${current.filename}?`)) return;
+    setDeleting(true);
+    try {
+      await api<{ deleted: boolean }>(`/api/media/${current.id}`, { method: "DELETE" });
+      toast.success("Image deleted successfully");
+      const id = current.id;
+      onOpenChange(false);
+      onDeleted?.(id);
+    } catch (err) {
+      toast.error("Failed to delete image", { description: err instanceof Error ? err.message : "Try again." });
+      setDeleting(false);
     }
   }
 
@@ -76,10 +95,16 @@ export function MediaDetailSheet({ asset, onOpenChange, onUpdated }: Props) {
               ) : (
                 <AnalysisPanel asset={current} />
               )}
-              <Button variant="secondary" onClick={analyze} disabled={steps.running} className="w-full">
-                {current.analyzed ? <RefreshCw /> : <Sparkles />}
-                {steps.running ? "Analyzing…" : current.analyzed ? "Re-run AI analysis" : "Analyze with AI"}
-              </Button>
+              <div className="flex flex-col gap-2.5">
+                <Button variant="secondary" onClick={analyze} disabled={steps.running || deleting} className="w-full">
+                  {current.analyzed ? <RefreshCw className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                  {steps.running ? "Analyzing…" : current.analyzed ? "Re-run AI analysis" : "Analyze with AI"}
+                </Button>
+                <Button variant="outline" onClick={handleDelete} disabled={steps.running || deleting} className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive">
+                  {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  {deleting ? "Deleting image..." : "Delete image"}
+                </Button>
+              </div>
               <SourceAssetCard asset={current} className="lg:hidden" />
             </div>
           </div>

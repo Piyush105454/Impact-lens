@@ -5,6 +5,7 @@
 export const publicConfig = {
   demoMode: (process.env.NEXT_PUBLIC_DEMO_MODE ?? "true") !== "false",
   cloudinaryCloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "",
+  cloudinaryApiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY ?? process.env.CLOUDINARY_API_KEY ?? "",
   cloudinaryUploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET ?? "",
   demoAssetsFromCloudinary: process.env.NEXT_PUBLIC_DEMO_ASSETS_FROM_CLOUDINARY === "true",
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",

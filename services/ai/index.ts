@@ -24,12 +24,35 @@ interface Resolution {
  */
 export function resolveProvider(): Resolution {
   const requested = serverEnv.aiProvider;
+  if (requested === "openrouter") {
+    const key = serverEnv.openrouterApiKey;
+    if (key) {
+      return {
+        requested,
+        active: "openrouter",
+        primary: new OpenAIAI(key, serverEnv.openrouterModel, serverEnv.openrouterBaseUrl, "openrouter"),
+      };
+    }
+    return { requested, active: "demo", primary: demo, reason: "OPENROUTER_API_KEY is not set" };
+  }
   if (requested === "gemini") {
     if (serverEnv.geminiApiKey) return { requested, active: "gemini", primary: new GeminiAI(serverEnv.geminiApiKey, serverEnv.geminiModel) };
     return { requested, active: "demo", primary: demo, reason: "GEMINI_API_KEY is not set" };
   }
   if (requested === "openai") {
-    if (serverEnv.openaiApiKey) return { requested, active: "openai", primary: new OpenAIAI(serverEnv.openaiApiKey, serverEnv.openaiModel) };
+    if (serverEnv.openaiApiKey) {
+      const isOR = serverEnv.openaiApiKey.startsWith("sk-or-v1-") || Boolean(serverEnv.openaiBaseUrl);
+      return {
+        requested,
+        active: isOR ? "openrouter" : "openai",
+        primary: new OpenAIAI(
+          serverEnv.openaiApiKey,
+          serverEnv.openaiModel,
+          serverEnv.openaiBaseUrl || (serverEnv.openaiApiKey.startsWith("sk-or-v1-") ? "https://openrouter.ai/api/v1" : ""),
+          isOR ? "openrouter" : "openai",
+        ),
+      };
+    }
     return { requested, active: "demo", primary: demo, reason: "OPENAI_API_KEY is not set" };
   }
   return { requested, active: "demo", primary: demo };
@@ -66,8 +89,17 @@ export function getAIProvider(): AIProvider {
 
 export function getProviderStatus(): ProviderStatus[] {
   const r = resolveProvider();
+  const hasOpenRouterKey = Boolean(serverEnv.openrouterApiKey || (serverEnv.openaiApiKey.startsWith("sk-or-v1-") ? serverEnv.openaiApiKey : ""));
   return [
     { name: "demo", label: "Demo AI", configured: true, active: r.active === "demo", note: "Local provider. Runs without API keys or network access." },
+    {
+      name: "openrouter",
+      label: "OpenRouter",
+      configured: hasOpenRouterKey,
+      active: r.active === "openrouter",
+      model: serverEnv.openrouterModel || serverEnv.openaiModel,
+      note: hasOpenRouterKey ? "API key detected." : "Set OPENROUTER_API_KEY (or OPENAI_API_KEY with sk-or-v1- key) and AI_PROVIDER=openrouter.",
+    },
     {
       name: "gemini",
       label: "Gemini",
@@ -79,7 +111,7 @@ export function getProviderStatus(): ProviderStatus[] {
     {
       name: "openai",
       label: "OpenAI",
-      configured: Boolean(serverEnv.openaiApiKey),
+      configured: Boolean(serverEnv.openaiApiKey && !serverEnv.openaiApiKey.startsWith("sk-or-v1-")),
       active: r.active === "openai",
       model: serverEnv.openaiModel,
       note: serverEnv.openaiApiKey ? "API key detected." : "Set OPENAI_API_KEY and AI_PROVIDER=openai.",

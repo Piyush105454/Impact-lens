@@ -135,6 +135,13 @@ export class DemoRepository implements Repository {
     return m;
   }
 
+  async deleteMedia(id: string) {
+    const s = store();
+    const len = s.media.length;
+    s.media = s.media.filter((m) => m.id !== id);
+    return s.media.length < len;
+  }
+
   async listTimeline(projectId: string) {
     return store().timeline.filter((t) => t.projectId === projectId).sort((a, b) => a.date.localeCompare(b.date));
   }

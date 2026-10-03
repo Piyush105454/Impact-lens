@@ -1,7 +1,7 @@
 export type Phase = "before" | "during" | "after";
 export type ResourceType = "image" | "video";
 export type ProjectStatus = "active" | "completed" | "planning";
-export type AIProviderName = "demo" | "gemini" | "openai";
+export type AIProviderName = "demo" | "gemini" | "openai" | "openrouter";
 
 export interface Project {
   id: string;

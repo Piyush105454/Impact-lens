@@ -1,5 +1,5 @@
 import "server-only";
-import type { Comparison, MediaAnalysis, Report, SearchInterpretation } from "@/types";
+import type { AIProviderName, Comparison, MediaAnalysis, Report, SearchInterpretation } from "@/types";
 import type {
   AIProvider,
   AnalyzeImageInput,
@@ -21,40 +21,90 @@ type ContentPart = { type: "text"; text: string } | { type: "image_url"; image_u
  * Only constructed when AI_PROVIDER=openai and OPENAI_API_KEY is set.
  */
 export class OpenAIAI implements AIProvider {
-  readonly name = "openai" as const;
-  constructor(private readonly apiKey: string, private readonly model: string) {}
+  readonly name: AIProviderName;
+  private readonly baseUrl: string;
+
+  constructor(
+    private readonly apiKey: string,
+    private readonly model: string,
+    baseUrl = "",
+    name: AIProviderName = "openai",
+  ) {
+    this.name = name;
+    this.baseUrl = baseUrl || (apiKey.startsWith("sk-or-v1-") ? "https://openrouter.ai/api/v1" : "");
+  }
 
   private async complete(content: ContentPart[]): Promise<unknown> {
-    const res = await withTimeout(
-      fetch("https://api.openai.com/v1/chat/completions", {
+    const endpoint = this.baseUrl
+      ? `${this.baseUrl.replace(/\/+$/, "")}/chat/completions`
+      : "https://api.openai.com/v1/chat/completions";
+
+    const isOpenRouter = endpoint.includes("openrouter.ai") || this.apiKey.startsWith("sk-or-v1-");
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.apiKey}`,
+    };
+
+    if (isOpenRouter) {
+      headers["HTTP-Referer"] = "https://impact-lens.local";
+      headers["X-Title"] = "Impact Lens";
+    }
+
+    const payload: Record<string, unknown> = {
+      model: this.model,
+      temperature: 0.2,
+      max_tokens: 2000,
+      messages: [
+        { role: "system", content: SYSTEM_GUARDRAILS },
+        { role: "user", content },
+      ],
+      response_format: { type: "json_object" },
+    };
+
+    let res = await withTimeout(
+      fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.apiKey}` },
-        body: JSON.stringify({
-          model: this.model,
-          temperature: 0.2,
-          response_format: { type: "json_object" },
-          messages: [
-            { role: "system", content: SYSTEM_GUARDRAILS },
-            { role: "user", content },
-          ],
-        }),
+        headers,
+        body: JSON.stringify(payload),
       }),
-      30_000,
-      "OpenAI request",
+      35_000,
+      "AI provider request",
     );
-    if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+
+    if (!res.ok) {
+      const errText = await res.text();
+      // Retry without response_format if model or gateway rejects json_object
+      if (errText.includes("response_format") || errText.includes("json_object")) {
+        delete payload.response_format;
+        res = await withTimeout(
+          fetch(endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+          }),
+          35_000,
+          "AI provider retry",
+        );
+      }
+      if (!res.ok) throw new Error(`AI Provider error ${res.status}: ${errText.slice(0, 200)}`);
+    }
+
     const json: unknown = await res.json();
     const text =
       isRecord(json) && Array.isArray(json.choices) && isRecord(json.choices[0]) && isRecord(json.choices[0].message)
         ? str(json.choices[0].message.content)
         : "";
-    if (!text) throw new Error("OpenAI returned an empty response");
+    if (!text) throw new Error("AI Provider returned an empty response");
     return stripJson(text);
   }
 
-  /** Public HTTPS media (e.g. Cloudinary) is passed by URL; anything else is inlined. */
+  /** Public HTTPS media passed by URL for standard OpenAI; inlined as base64 for OpenRouter for high reliability. */
   private async image(url: string): Promise<ContentPart> {
-    if (url.startsWith("https://res.cloudinary.com/")) return { type: "image_url", image_url: { url, detail: "auto" } };
+    const isOpenRouter = this.baseUrl.includes("openrouter.ai") || this.apiKey.startsWith("sk-or-v1-");
+    if (!isOpenRouter && url.startsWith("https://res.cloudinary.com/")) {
+      return { type: "image_url", image_url: { url, detail: "auto" } };
+    }
     const img = await fetchImageAsBase64(url);
     return { type: "image_url", image_url: { url: `data:${img.mimeType};base64,${img.data}`, detail: "auto" } };
   }

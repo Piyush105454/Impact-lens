@@ -20,8 +20,23 @@ function greeting() {
   return "Good evening";
 }
 
+import { getRepository } from "@/services/repository";
+import type { MediaAsset } from "@/types";
+
 export default async function DashboardPage() {
-  const [{ stats, activity, reports, mediaActivity, progress }, featured] = await Promise.all([getDashboard(), listFeaturedProjects()]);
+  const repo = getRepository();
+  const [{ stats, activity, reports, mediaActivity, progress }, featured, media] = await Promise.all([
+    getDashboard(),
+    listFeaturedProjects(),
+    repo.listMedia(),
+  ]);
+
+  const mediaByProject = new Map<string, MediaAsset[]>();
+  for (const m of media) {
+    const list = mediaByProject.get(m.projectId) ?? [];
+    list.push(m);
+    mediaByProject.set(m.projectId, list);
+  }
 
   return (
     <div className="space-y-10">
@@ -46,7 +61,7 @@ export default async function DashboardPage() {
       <section>
         <SectionTitle title="Recent projects" action={<Button variant="ghost" size="sm" asChild><Link href="/projects">All projects</Link></Button>} />
         <div className="grid gap-4 md:grid-cols-3">
-          {featured.map((p) => <ProjectCard key={p.id} project={p} />)}
+          {featured.map((p) => <ProjectCard key={p.id} project={p} mediaAssets={mediaByProject.get(p.id)} />)}
         </div>
       </section>
 

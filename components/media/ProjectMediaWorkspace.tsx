@@ -24,7 +24,12 @@ export function ProjectMediaWorkspace({ initialAssets, totalCount }: { projectId
         <h2 className="text-2xl font-semibold">Media intelligence</h2>
         <p className="mt-1 text-sm text-muted-foreground">Every photo and video is analyzed for objects, activities, phase and location.</p>
       </div>
-      <MediaGallery assets={assets} totalCount={totalCount} onAssetUpdated={(a) => setAssets((l) => merge(l, [a]))} />
+      <MediaGallery
+        assets={assets}
+        totalCount={totalCount}
+        onAssetUpdated={(a) => setAssets((l) => merge(l, [a]))}
+        onAssetDeleted={(id) => setAssets((l) => l.filter((a) => a.id !== id))}
+      />
     </div>
   );
 }

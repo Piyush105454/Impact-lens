@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ImageOff, Search, SlidersHorizontal } from "lucide-react";
 import type { MediaAsset, Phase, ResourceType } from "@/types";
 import { Input, Select } from "@/components/ui/input";
@@ -21,9 +21,11 @@ interface Props {
   totalCount?: number;
   projectNames?: Record<string, string>;
   onAssetUpdated?: (a: MediaAsset) => void;
+  onAssetDeleted?: (id: string) => void;
 }
 
-export function MediaGallery({ assets, totalCount, projectNames, onAssetUpdated }: Props) {
+export function MediaGallery({ assets, totalCount, projectNames, onAssetUpdated, onAssetDeleted }: Props) {
+  const [items, setItems] = useState<MediaAsset[]>(assets);
   const [phase, setPhase] = useState<Phase | "all">("all");
   const [type, setType] = useState<ResourceType | "all">("all");
   const [tag, setTag] = useState("all");
@@ -32,24 +34,39 @@ export function MediaGallery({ assets, totalCount, projectNames, onAssetUpdated 
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<MediaAsset | null>(null);
 
+  useEffect(() => {
+    setItems(assets);
+  }, [assets]);
+
+  function handleDeleted(id: string) {
+    setItems((prev) => prev.filter((a) => a.id !== id));
+    if (selected?.id === id) setSelected(null);
+    onAssetDeleted?.(id);
+  }
+
+  function handleUpdated(updated: MediaAsset) {
+    setItems((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    onAssetUpdated?.(updated);
+  }
+
   const options = useMemo(
     () => ({
-      tags: uniq(assets.flatMap((a) => a.tags)).sort(),
-      locations: uniq(assets.map((a) => a.site ?? a.location)).sort(),
-      months: uniq(assets.map((a) => a.capturedAt.slice(0, 7))).sort(),
+      tags: uniq(items.flatMap((a) => a.tags)).sort(),
+      locations: uniq(items.map((a) => a.site ?? a.location)).sort(),
+      months: uniq(items.map((a) => a.capturedAt.slice(0, 7))).sort(),
     }),
-    [assets],
+    [items],
   );
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: assets.length, before: 0, during: 0, after: 0 };
-    for (const a of assets) c[a.phase]++;
+    const c: Record<string, number> = { all: items.length, before: 0, during: 0, after: 0 };
+    for (const a of items) c[a.phase]++;
     return c;
-  }, [assets]);
+  }, [items]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return assets.filter((a) => {
+    return items.filter((a) => {
       if (phase !== "all" && a.phase !== phase) return false;
       if (type !== "all" && a.resourceType !== type) return false;
       if (tag !== "all" && !a.tags.includes(tag)) return false;
@@ -61,7 +78,7 @@ export function MediaGallery({ assets, totalCount, projectNames, onAssetUpdated 
       }
       return true;
     });
-  }, [assets, phase, type, tag, location, month, q]);
+  }, [items, phase, type, tag, location, month, q]);
 
   const filtersActive = phase !== "all" || type !== "all" || tag !== "all" || location !== "all" || month !== "all" || q !== "";
   function clear() {
@@ -116,7 +133,7 @@ export function MediaGallery({ assets, totalCount, projectNames, onAssetUpdated 
           </Select>
           {filtersActive && <Button variant="ghost" size="sm" onClick={clear}>Clear filters</Button>}
           <p className="ml-auto text-xs text-muted-foreground" aria-live="polite">
-            Showing {filtered.length} of {assets.length} featured assets{totalCount && totalCount > assets.length ? ` from ${totalCount} project assets` : ""}
+            Showing {filtered.length} of {items.length} featured assets{totalCount && totalCount > items.length ? ` from ${totalCount} project assets` : ""}
           </p>
         </div>
       </div>
@@ -124,22 +141,23 @@ export function MediaGallery({ assets, totalCount, projectNames, onAssetUpdated 
       {filtered.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((a) => (
-            <MediaCard key={a.id} asset={a} onOpen={setSelected} projectName={projectNames?.[a.projectId]} />
+            <MediaCard key={a.id} asset={a} onOpen={setSelected} onDeleted={handleDeleted} projectName={projectNames?.[a.projectId]} />
           ))}
         </div>
       ) : (
         <EmptyState
           icon={<ImageOff className="h-5 w-5" />}
-          title={assets.length ? "No media matches these filters" : "No media yet"}
-          description={assets.length ? "Try a different phase, tag or date, or clear the filters." : "Upload field photos and videos to start building AI-analyzed evidence."}
-          action={assets.length ? <Button variant="secondary" onClick={clear}>Clear filters</Button> : undefined}
+          title={items.length ? "No media matches these filters" : "No media yet"}
+          description={items.length ? "Try a different phase, tag or date, or clear the filters." : "Upload field photos and videos to start building AI-analyzed evidence."}
+          action={items.length ? <Button variant="secondary" onClick={clear}>Clear filters</Button> : undefined}
         />
       )}
 
       <MediaDetailSheet
         asset={selected}
         onOpenChange={(o) => !o && setSelected(null)}
-        onUpdated={(a) => onAssetUpdated?.(a)}
+        onUpdated={handleUpdated}
+        onDeleted={handleDeleted}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import "server-only";
-import type { Comparison, MediaAnalysis, Report, SearchInterpretation } from "@/types";
+import type { AIProviderName, Comparison, MediaAnalysis, Report, SearchInterpretation } from "@/types";
 import type {
   AIProvider,
   AnalyzeImageInput,
@@ -103,7 +103,7 @@ export function evidencePayload({ project, assets, timeline, comparison }: Gener
   };
 }
 
-export function reportFromRaw(raw: unknown, input: GenerateReportInput, provider: "gemini" | "openai"): Report {
+export function reportFromRaw(raw: unknown, input: GenerateReportInput, provider: AIProviderName): Report {
   if (!isRecord(raw)) throw new Error("Invalid report payload");
   const acts = Array.isArray(raw.keyActivities) ? raw.keyActivities.filter(isRecord) : [];
   const ev = Array.isArray(raw.evidence) ? raw.evidence.filter(isRecord) : [];

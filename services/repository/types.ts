@@ -39,6 +39,7 @@ export interface Repository {
   getMedia(id: string): Promise<MediaAsset | null>;
   createMedia(input: CreateMediaInput): Promise<MediaAsset>;
   saveAnalysis(assetId: string, analysis: MediaAnalysis): Promise<MediaAsset | null>;
+  deleteMedia(id: string): Promise<boolean>;
 
   listTimeline(projectId: string): Promise<TimelineEvent[]>;
   listComparisons(projectId: string): Promise<Comparison[]>;

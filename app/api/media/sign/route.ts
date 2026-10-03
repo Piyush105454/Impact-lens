@@ -9,10 +9,8 @@ export async function POST(req: Request) {
   const params = body?.paramsToSign;
   if (typeof params !== "object" || params === null) return fail("paramsToSign is required", 422);
   const clean: Record<string, string | number> = {};
-  for (const [k, v] of Object.entries(params as Record<string, unknown>)) if (typeof v === "string" || typeof v === "number") clean[k] = v;
-  // Constrain uploads to the ImpactLens folder only when folder is explicitly provided.
-  if (typeof clean.folder === "string" && clean.folder !== "" && !clean.folder.startsWith("impactlens")) {
-    return fail("Uploads must target the impactlens folder", 403);
+  for (const [k, v] of Object.entries(params as Record<string, unknown>)) {
+    if (typeof v === "string" || typeof v === "number") clean[k] = v;
   }
   return NextResponse.json({ signature: signUploadParams(clean) });
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CldUploadWidget, type CloudinaryUploadWidgetInfo, type CloudinaryUploadWidgetResults } from "next-cloudinary";
 import { AlertCircle, CheckCircle2, CloudUpload, Images, Loader2, Sparkles, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
@@ -47,6 +47,7 @@ export function UploadMediaDialog({ open, onOpenChange, projectId, projectName, 
   const [sampleId, setSampleId] = useState<string | null>(sampleAssets[0]?.id ?? null);
   const [result, setResult] = useState<MediaAsset | null>(null);
   const steps = useStepSequence(ANALYSIS_STEPS.length);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function register(info: CloudinaryUploadWidgetInfo) {
     const key = info.public_id;
@@ -82,6 +83,96 @@ export function UploadMediaDialog({ open, onOpenChange, projectId, projectName, 
       const msg = e instanceof Error ? e.message : "Upload could not be registered";
       setQueue((q) => q.map((i) => (i.key === key ? { ...i, status: "error", error: msg } : i)));
       toast.error("Upload failed", { description: msg });
+    }
+  }
+
+  async function uploadFileToCloudinary(file: File) {
+    const key = `${Date.now()}_${file.name}`;
+    setQueue((q) => [{ key, name: file.name, status: "analyzing" }, ...q]);
+    try {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const folder = `impactlens/${projectId}/${phase}`;
+
+      const sigRes = await fetch("/api/media/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paramsToSign: {
+            timestamp,
+            folder,
+            upload_preset: publicConfig.cloudinaryUploadPreset,
+          },
+        }),
+      });
+      const sigData = await sigRes.json();
+      if (!sigData?.signature) {
+        throw new Error(sigData?.error || "Signature generation failed");
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", publicConfig.cloudinaryUploadPreset);
+      formData.append("api_key", publicConfig.cloudinaryApiKey);
+      formData.append("timestamp", String(timestamp));
+      formData.append("folder", folder);
+      formData.append("signature", sigData.signature);
+
+      const cloudRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${publicConfig.cloudinaryCloudName}/auto/upload`,
+        { method: "POST", body: formData },
+      );
+      const cldInfo = await cloudRes.json();
+      if (cldInfo.error) {
+        throw new Error(cldInfo.error.message || "Cloudinary upload failed");
+      }
+
+      const r = await steps.run(() =>
+        api<{ asset: MediaAsset; analysis: MediaAnalysis | null }>("/api/media/upload", {
+          json: {
+            projectId,
+            phase,
+            site: site || undefined,
+            upload: {
+              public_id: cldInfo.public_id,
+              secure_url: cldInfo.secure_url,
+              resource_type: cldInfo.resource_type,
+              format: cldInfo.format,
+              width: cldInfo.width,
+              height: cldInfo.height,
+              duration: cldInfo.duration,
+              original_filename: cldInfo.original_filename || file.name,
+              bytes: cldInfo.bytes,
+              created_at: cldInfo.created_at,
+            },
+          },
+        }),
+      );
+
+      setQueue((q) => q.map((i) => (i.key === key ? { ...i, status: "done", asset: r.asset } : i)));
+      setResult(r.asset);
+      onUploaded([r.asset]);
+      toast.success("Media uploaded and analyzed", { description: r.asset.filename });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Upload failed";
+      setQueue((q) => q.map((i) => (i.key === key ? { ...i, status: "error", error: msg } : i)));
+      toast.error("Upload failed", { description: msg });
+    }
+  }
+
+  async function handleDirectFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    for (const file of files) {
+      await uploadFileToCloudinary(file);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (!files.length) return;
+    for (const file of files) {
+      void uploadFileToCloudinary(file);
     }
   }
 
@@ -139,27 +230,53 @@ export function UploadMediaDialog({ open, onOpenChange, projectId, projectName, 
 
           <TabsContent value="cloudinary" className="mt-4 focus-visible:outline-none">
             {isCloudinaryUploadConfigured ? (
-              <CldUploadWidget
-                uploadPreset={publicConfig.cloudinaryUploadPreset}
-                config={{ cloud: { cloudName: publicConfig.cloudinaryCloudName } }}
-                signatureEndpoint="/api/media/sign"
-                options={{ multiple: true, maxFiles: 20, resourceType: "auto", folder: `impactlens/${projectId}/${phase}`, sources: ["local", "camera", "url"], tags: ["impactlens", projectId, phase] }}
-                onSuccess={(res: CloudinaryUploadWidgetResults) => {
-                  if (res.info && typeof res.info !== "string") void register(res.info);
-                }}
-                onError={(err) => {
-                    const detail = typeof err === "object" && err !== null && "statusText" in err ? String((err as {statusText:string}).statusText) : "Check your upload preset is set to Unsigned in the Cloudinary console.";
-                    toast.error("Upload failed", { description: detail });
-                  }}
-              >
-                {({ open: openWidget }) => (
-                  <button type="button" onClick={() => openWidget()} className="flex w-full flex-col items-center gap-3 rounded-2xl border border-dashed bg-surface/60 px-6 py-10 text-center transition-colors hover:border-primary/50">
-                    <UploadCloud className="h-8 w-8 text-primary" />
-                    <span className="font-semibold">Choose photos or videos</span>
-                    <span className="text-sm text-muted-foreground">Multiple files, images and video. Stored in <code className="text-foreground/80">impactlens/{projectId}/{phase}</code></span>
-                  </button>
-                )}
-              </CldUploadWidget>
+              <div className="space-y-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={handleDirectFileSelect}
+                />
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex w-full cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed bg-surface/60 px-6 py-10 text-center transition-colors hover:border-primary/60 hover:bg-surface"
+                >
+                  <UploadCloud className="h-9 w-9 text-primary" />
+                  <div>
+                    <span className="text-base font-semibold">Choose field photos or videos</span>
+                    <p className="mt-1 text-xs text-muted-foreground">Click to browse your device or drag & drop files here</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground/80">
+                    Stored in <code className="text-foreground/80">impactlens/{projectId}/{phase}</code>
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-muted-foreground">Prefer Cloudinary Modal widget?</span>
+                  <CldUploadWidget
+                    signatureEndpoint="/api/media/sign"
+                    uploadPreset={publicConfig.cloudinaryUploadPreset}
+                    config={{ cloud: { cloudName: publicConfig.cloudinaryCloudName, apiKey: publicConfig.cloudinaryApiKey } }}
+                    options={{ multiple: true, maxFiles: 20, resourceType: "auto", folder: `impactlens/${projectId}/${phase}`, sources: ["local", "camera", "url"], tags: ["impactlens", projectId, phase] }}
+                    onSuccess={(res: CloudinaryUploadWidgetResults) => {
+                      if (res.info && typeof res.info !== "string") void register(res.info);
+                    }}
+                    onUpload={(res: CloudinaryUploadWidgetResults) => {
+                      if (res.event === "success" && res.info && typeof res.info !== "string") void register(res.info);
+                    }}
+                  >
+                    {({ open: openWidget }) => (
+                      <Button variant="outline" size="sm" type="button" onClick={() => openWidget()}>
+                        Open Widget Modal
+                      </Button>
+                    )}
+                  </CldUploadWidget>
+                </div>
+              </div>
             ) : (
               <div className="flex gap-3 rounded-2xl border bg-surface/60 p-5 text-sm">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-phase-before" />

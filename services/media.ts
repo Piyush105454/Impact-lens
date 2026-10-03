@@ -18,6 +18,10 @@ export async function listProjectMedia(projectId: string) {
   return getRepository().listMedia(projectId);
 }
 
+export async function deleteMedia(id: string) {
+  return getRepository().deleteMedia(id);
+}
+
 export async function analyzeAsset(assetId: string, origin: string) {
   const repo = getRepository();
   const asset = await repo.getMedia(assetId);
