@@ -21,6 +21,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const phases = new Set(sources.map((a) => a.phase));
   const avgConfidence = sources.length ? Math.round(sources.reduce((s, a) => s + a.confidence, 0) / sources.length) : 0;
 
+  // Build Timeline SVG Graph points
+  const timelineStages = report.timeline.length ? report.timeline : [];
+  const maxMedia = Math.max(1, ...timelineStages.map((t) => t.mediaCount));
+  const svgWidth = 540;
+  const svgHeight = 90;
+  const stepX = timelineStages.length > 1 ? svgWidth / (timelineStages.length - 1) : svgWidth / 2;
+
+  const graphPoints = timelineStages.map((t, idx) => {
+    const x = timelineStages.length > 1 ? idx * stepX : svgWidth / 2;
+    const y = svgHeight - (t.mediaCount / maxMedia) * 60 - 15;
+    return { x, y, date: formatDate(t.date), count: t.mediaCount, phase: t.phase };
+  });
+
+  const polylineStr = graphPoints.map((p) => `${p.x},${p.y}`).join(" ");
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,7 +50,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     /* Dark Emerald Banner Header */
     .banner { background: #0B281B; color: #ffffff; padding: 40px 44px 32px 44px; position: relative; }
     .banner-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .logo-brand { display: flex; items-center: center; gap: 10px; font-weight: 700; font-size: 20px; letter-spacing: -0.5px; color: #ffffff; }
+    .logo-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; letter-spacing: -0.5px; color: #ffffff; }
     .logo-icon { width: 22px; height: 22px; background: #22C55E; border-radius: 50%; display: inline-block; border: 3px solid #0B281B; }
     .banner-tagline { color: #9CA3AF; font-size: 12px; font-weight: 500; }
     .report-badge { color: #4ADE80; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
@@ -64,9 +79,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .card { border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px; background: #FAFAFA; }
     .media-img { width: 100%; height: 170px; object-fit: cover; border-radius: 8px; border: 1px solid #E5E7EB; display: block; }
     
-    /* Timeline Stages */
+    /* Timeline Stages & Graph */
+    .timeline-graph-card { background: #F4FBF7; border: 1px solid #BBF7D0; border-radius: 12px; padding: 18px; margin-bottom: 20px; }
     .timeline-item { border-left: 3px solid #22C55E; padding-left: 14px; margin-bottom: 20px; page-break-inside: avoid; }
-    .timeline-header { font-weight: 700; color: #15803D; font-size: 13px; display: flex; items-center: center; gap: 8px; }
+    .timeline-header { font-weight: 700; color: #15803D; font-size: 13px; display: flex; align-items: center; gap: 8px; }
     .timeline-badge { background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 600; }
     .timeline-summary { margin: 6px 0 10px 0; font-size: 12px; color: #374151; line-height: 1.5; }
     
@@ -86,6 +102,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       .details-table tr:nth-child(odd) { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .ai-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .timeline-badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .timeline-graph-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .page-break { page-break-before: always; }
     }
   </style>
@@ -155,10 +172,34 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         </table>
       </div>
 
-      <!-- Section 3: Visual Timeline Stages & AI Analysis -->
+      <!-- Section 3: Visual Timeline Stages, Timeline Graph & AI Analysis -->
       <div class="section">
         <div class="section-title">Visual Timeline Stages & AI Analysis</div>
-        ${report.timeline.map((t) => {
+
+        <!-- Vector Timeline Graph -->
+        ${timelineStages.length > 0 ? `
+          <div class="timeline-graph-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <strong style="color: #064E3B; font-size: 13px;">Timeline Activity & Media Progression Chart</strong>
+              <span style="font-size: 11px; color: #15803D; font-weight: 600;">${timelineStages.length} Stages • ${sources.length} Verified Media Assets</span>
+            </div>
+            <svg width="100%" height="90" viewBox="0 0 540 90" style="overflow: visible;">
+              <line x1="0" y1="20" x2="540" y2="20" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+              <line x1="0" y1="50" x2="540" y2="50" stroke="#CBD5E1" stroke-dasharray="3 3"/>
+              <line x1="0" y1="80" x2="540" y2="80" stroke="#94A3B8"/>
+              
+              ${graphPoints.length > 1 ? `<polyline points="${polylineStr}" fill="none" stroke="#22C55E" stroke-width="3" />` : ""}
+              
+              ${graphPoints.map(p => `
+                <circle cx="${p.x}" cy="${p.y}" r="6" fill="#22C55E" stroke="#ffffff" stroke-width="2" />
+                <text x="${p.x}" y="88" font-size="10" fill="#64748B" text-anchor="middle">${p.date}</text>
+              `).join("")}
+            </svg>
+          </div>
+        ` : ""}
+
+        <!-- Timeline Stages & Media Thumbnails -->
+        ${timelineStages.map((t) => {
           const stageAssets = t.assetIds.map(id => byId.get(id)).filter(Boolean);
           return `
             <div class="timeline-item">
