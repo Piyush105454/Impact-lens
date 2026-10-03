@@ -11,8 +11,7 @@ import { formatDate, formatDateTime, formatMonth, formatPeriod, formatShortDate,
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
     <section className="border-t border-border/70 px-6 py-8 sm:px-10" aria-labelledby={`rs-${n}`}>
-      <h2 id={`rs-${n}`} className="mb-4 flex items-baseline gap-3 text-xl font-semibold">
-        <span className="font-sans text-sm font-medium tabular-nums text-primary">{String(n).padStart(2, "0")}</span>
+      <h2 id={`rs-${n}`} className="mb-4 flex items-center gap-2.5 text-xl font-semibold border-l-4 border-primary pl-3.5">
         {title}
       </h2>
       {children}
@@ -31,18 +30,20 @@ export function ReportDocument({ report, project, assets }: { report: Report; pr
 
   return (
     <article className="overflow-hidden rounded-3xl border bg-surface">
-      <header className="relative overflow-hidden px-6 pb-10 pt-8 sm:px-10">
-        <div className="absolute inset-0 field-grid opacity-40" aria-hidden="true" />
+      <header className="relative overflow-hidden bg-[#0B281B] text-white px-6 pb-10 pt-8 sm:px-10">
         <div className="relative">
           <div className="flex items-center justify-between gap-4">
-            <span className="flex items-center gap-2 text-sm font-semibold"><LogoMark className="h-6 w-6" /> ImpactLens Impact Report</span>
-            <span className="text-xs text-muted-foreground">Report {report.id}</span>
+            <span className="flex items-center gap-2 text-sm font-semibold text-white"><LogoMark className="h-6 w-6" /> ImpactLens</span>
+            <span className="text-xs text-muted-foreground/80">Turn Field Media Into Measurable Impact</span>
           </div>
-          <h1 className="mt-10 max-w-3xl text-4xl font-semibold leading-[1.08] sm:text-5xl">{project.name}</h1>
-          <p className="mt-3 text-muted-foreground">
-            {project.location}, {formatPeriod(project.startDate, project.endDate)}
+          <div className="mt-8 text-xs font-semibold uppercase tracking-wider text-emerald-400">Impact Report</div>
+          <h1 className="mt-1 max-w-3xl font-serif text-4xl font-semibold leading-[1.08] sm:text-5xl text-white">{project.name}</h1>
+          <p className="mt-3 text-gray-300 text-sm font-medium">
+            {project.location} &nbsp;|&nbsp; {formatPeriod(project.startDate, project.endDate)}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">Prepared for {DEMO_ORG_NAME}, generated {formatDateTime(report.generatedAt)}</p>
+          <p className="mt-4 text-xs text-gray-400 font-mono">
+            Generated {formatDate(report.generatedAt)} &nbsp;|&nbsp; Report {report.id} &nbsp;|&nbsp; {sources.length} source assets
+          </p>
         </div>
       </header>
 
