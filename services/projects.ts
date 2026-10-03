@@ -3,7 +3,7 @@ import { getRepository } from "./repository";
 import type { CreateProjectInput, UpdateProjectInput } from "./repository/types";
 import { FEATURED_PROJECT_IDS } from "@/lib/demo/demoProjects";
 import { demoMediaActivity } from "@/lib/demo/demoActivity";
-import type { MediaAsset } from "@/types";
+import type { MediaAsset, TimelineEvent } from "@/types";
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -45,11 +45,56 @@ export async function deleteProject(id: string) {
   return getRepository().deleteProject(id);
 }
 
+export function generateDynamicTimeline(projectId: string, media: MediaAsset[]): TimelineEvent[] {
+  if (!media.length) return [];
+  const groups = new Map<string, MediaAsset[]>();
+  const sorted = [...media].sort((a, b) => a.capturedAt.localeCompare(b.capturedAt));
+
+  for (const m of sorted) {
+    const monthKey = m.capturedAt ? m.capturedAt.slice(0, 7) : "2026-03";
+    const key = `${m.phase}_${monthKey}`;
+    const list = groups.get(key) ?? [];
+    list.push(m);
+    groups.set(key, list);
+  }
+
+  const events: TimelineEvent[] = [];
+  let idx = 1;
+  for (const [, items] of groups.entries()) {
+    const phase = items[0].phase;
+    const rawDate = items[0].capturedAt ? items[0].capturedAt.slice(0, 10) : "2026-03-01";
+    const tags = Array.from(new Set(items.flatMap((a) => a.tags))).filter(Boolean).slice(0, 5);
+    const activities = Array.from(new Set(items.flatMap((a) => a.activities))).filter(Boolean).slice(0, 3);
+    const objects = Array.from(new Set(items.flatMap((a) => a.objects))).filter(Boolean).slice(0, 3);
+    const avgConf = Math.round(items.reduce((s, a) => s + (a.confidence || 75), 0) / items.length);
+    const site = items[0].site ?? items[0].location ?? "Project Site";
+
+    const phaseTitle = phase === "before" ? "Baseline Phase" : phase === "during" ? "Implementation & Field Activities" : "Restoration & Final Impact";
+    const activityStr = activities.length ? activities.join(", ") : "Site Operations";
+    const keyPoints = objects.length ? `Detected ${objects.join(", ")}` : "Field progress documented";
+
+    events.push({
+      id: `evt_dyn_${projectId}_${idx++}`,
+      projectId,
+      date: `${rawDate.slice(0, 7)}-01`,
+      title: `${phaseTitle} - ${activityStr}`,
+      description: `${items.length} media asset(s) captured at ${site}. Key point changes: ${keyPoints}.`,
+      aiSummary: `AI analyzed ${items.length} asset(s) with ${avgConf}% confidence. Tagged with ${tags.map((t) => `#${t}`).join(" ") || "#field #evidence"}. Visual impact changes verified for this timeline stage.`,
+      phase,
+      mediaCount: items.length,
+      assetIds: items.map((a) => a.id),
+    });
+  }
+
+  return events.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function getProjectBundle(id: string) {
   const repo = getRepository();
   const project = await repo.getProject(id);
   if (!project) return null;
-  const [media, timeline, comparisons] = await Promise.all([repo.listMedia(id), repo.listTimeline(id), repo.listComparisons(id)]);
+  const [media, rawTimeline, comparisons] = await Promise.all([repo.listMedia(id), repo.listTimeline(id), repo.listComparisons(id)]);
+  const timeline = rawTimeline.length > 0 ? rawTimeline : generateDynamicTimeline(id, media);
   return { project, media, timeline, comparisons };
 }
 

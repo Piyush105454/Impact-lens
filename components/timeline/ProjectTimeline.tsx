@@ -5,6 +5,7 @@ import type { MediaAsset, TimelineEvent } from "@/types";
 import { MediaThumb } from "@/components/media/MediaThumb";
 import { MediaDetailSheet } from "@/components/media/MediaDetailSheet";
 import { PhaseBadge } from "@/components/media/PhaseBadge";
+import { TimelineGraph } from "./TimelineGraph";
 import { cn, formatMonth } from "@/lib/utils";
 
 const RAIL = { before: "bg-phase-before", during: "bg-phase-during", after: "bg-phase-after" } as const;
@@ -15,6 +16,7 @@ export function ProjectTimeline({ events, assets, compact }: { events: TimelineE
 
   return (
     <>
+      {!compact && <TimelineGraph events={events} assets={assets} />}
       <ol className="relative">
         {events.map((e, i) => {
           const media = e.assetIds.map((id) => byId.get(id)).filter((a): a is MediaAsset => Boolean(a));

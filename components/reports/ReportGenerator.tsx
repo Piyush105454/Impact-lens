@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { Download, FileText, History, RefreshCw, Sparkles } from "lucide-react";
+import { Download, FileText, History, Printer, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import type { MediaAsset, Project, Report, ReportListItem } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -95,10 +95,15 @@ export function ReportGenerator({ project, assets, initialReport, history }: { p
           <p className="text-sm font-semibold">{report.title}</p>
           <p className="text-xs text-muted-foreground">Generated {formatDateTime(report.generatedAt)}, {report.sourceAssetIds.length} source assets</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={generate}><RefreshCw /> Regenerate</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={generate}><RefreshCw className="h-4 w-4" /> Regenerate</Button>
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="h-4 w-4" /> Print / Save PDF
+          </Button>
           <Button asChild>
-            <a href={`/api/reports/${report.id}/pdf`} download><Download /> Download PDF</a>
+            <a href={`/api/reports/${report.id}/pdf`} target="_blank" rel="noreferrer">
+              <Download className="h-4 w-4" /> Export PDF
+            </a>
           </Button>
         </div>
       </div>
