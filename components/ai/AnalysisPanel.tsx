@@ -5,7 +5,7 @@ import { TagList } from "./TagList";
 import { PhaseBadge } from "@/components/media/PhaseBadge";
 import { formatDate, formatDateTime, titleCase } from "@/lib/utils";
 
-/** AI analysis output for a single asset. */
+/** AI analysis output for a single asset.  i just testing how working feature brnaches */
 export function AnalysisPanel({ asset }: { asset: MediaAsset }) {
   return (
     <div className="space-y-5">
